@@ -149,6 +149,10 @@ async function handleEatPieCommand(res) {
   }
 }
 
+app.get('/', (req, res) => {
+  res.send('Hello, world!');
+});
+
 // Start the server
 app.listen(process.env.PORT || 3000, () => {
   console.log('Server is running');
