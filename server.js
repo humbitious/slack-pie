@@ -1,3 +1,4 @@
+require('dotenv').config();
 // Import the necessary modules
 const express = require('express');
 const bodyParser = require('body-parser');
