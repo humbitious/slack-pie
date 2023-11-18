@@ -1,17 +1,16 @@
 require('dotenv').config();
-// Import the necessary modules
 const express = require('express');
 const bodyParser = require('body-parser');
 const { MongoClient, ServerApiVersion } = require('mongodb');
+const { createEventAdapter } = require('@slack/events-api');
 
-// Create a new Express application
 const app = express();
-
-// Use body-parser middleware to parse request bodies
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// Declare a variable to hold our database connection
+const slackEvents = createEventAdapter(process.env.SLACK_SIGNING_SECRET);
+app.use('/slack/events', slackEvents.requestListener());
+
 const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/pie';
 let db;
 
@@ -29,29 +28,35 @@ async function run() {
     db = client.db('pie');
     console.log("Connected to MongoDB!");
 
+    slackEvents.on('message', async (event) => {
+      if (event.thread_ts) {
+        const pie = await db.collection('pies').findOne({ ts: event.thread_ts });
+        if (pie) {
+          const sliceValue = parseFloat(event.text);
+          if (!isNaN(sliceValue) && sliceValue >= 0) {
+            await db.collection('slices').insertOne({ user: event.user, pieId: pie.pieId, value: sliceValue });
+          }
+        }
+      }
+    });
 
-// Define a route to handle Slack slash commands
-app.post('/slack/commands', (req, res) => {
-  // Extract the command, text, and user_name from the request body
-  const { command, text, user_name } = req.body;
+    app.post('/slack/commands', (req, res) => {
+      const { command, text, user_name } = req.body;
+      switch (command) {
+        case '/pie':
+          handlePieCommand(user_name, text, res);
+          break;
+        case '/slicepie':
+          handleSlicePieCommand(user_name, text, res);
+          break;
+        case '/eatpie':
+          handleEatPieCommand(res);
+          break;
+        default:
+          res.send('Invalid command');
+      }
+    });
 
-  // Depending on the command, call a different function
-  switch (command) {
-    case '/pie':
-      handlePieCommand(user_name, text, res);
-      break;
-    case '/slicepie':
-      handleSlicePieCommand(user_name, text, res);
-      break;
-    case '/eatpie':
-      handleEatPieCommand(res);
-      break;
-    default:
-      res.send('Invalid command');
-  }
-});
-
-    // Start the server
     app.listen(process.env.PORT || 3000, () => {
       console.log('Server is running');
     });
@@ -64,32 +69,24 @@ app.post('/slack/commands', (req, res) => {
 
 run().catch(console.dir);
 
-
-// Define a function to handle the /pie command
 async function handlePieCommand(user_name, text, res) {
   const { WebClient } = require('@slack/web-api');
-
   const slackClient = new WebClient(process.env.SLACK_TOKEN);
-
   const pieId = text.trim();
 
   try {
-    // Post a new message for the /pie command
     const result = await slackClient.chat.postMessage({
       channel: process.env.CHANNEL_ID,
       text: `Pie ${pieId} has been added by ${user_name}`
     });
 
-    // Post a reply to the message to start a thread
     const threadResult = await slackClient.chat.postMessage({
       channel: process.env.CHANNEL_ID,
       text: `Thread started for pie ${pieId}`,
       thread_ts: result.ts
     });
 
-    // Store the ts value of the thread in the database
     await db.collection('pies').insertOne({ user: user_name, pieId: pieId, ts: threadResult.ts });
-
     res.send('');
   } catch (err) {
     console.error('Error handling /pie command', err);
@@ -97,24 +94,17 @@ async function handlePieCommand(user_name, text, res) {
   }
 }
 
-// Define a function to handle the /slicepie command
 async function handleSlicePieCommand(user_name, text, res) {
   const { WebClient } = require('@slack/web-api');
   const slackClient = new WebClient(process.env.SLACK_TOKEN);
-
-  // Extract the pie ID and the slice value from the command text
   const [pieId, sliceValue] = text.trim().split(' ');
-
-  // Convert the slice value to a number
   const slice = parseFloat(sliceValue);
 
-  // If the slice value is not a valid number, send an error message
   if (isNaN(slice) || slice < 0) {
     res.send('Invalid number');
     return;
   }
 
-  // Check if the pie exists
   const pie = await db.collection('pies').findOne({ pieId: pieId });
   if (!pie) {
     res.send('Invalid pie ID');
@@ -122,14 +112,11 @@ async function handleSlicePieCommand(user_name, text, res) {
   }
 
   try {
-    // Add the slice to the slices collection with the user's name and the pie ID
     await db.collection('slices').insertOne({ user: user_name, pieId: pieId, value: slice });
-
-    // Post a new message to the thread
     const result = await slackClient.chat.postMessage({
       channel: process.env.CHANNEL_ID,
       text: `Slice for pie ${pieId} has been added by ${user_name}`,
-      thread_ts: pie.ts  // post the message to the thread
+      thread_ts: pie.ts
     });
 
     res.send(`Slice for pie ${pieId} has been added by ${user_name}`);
