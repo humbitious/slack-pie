@@ -48,6 +48,11 @@ app.post('/slack/commands', (req, res) => {
   }
 });
 
+// Start the server
+app.listen(process.env.PORT || 3000, () => {
+  console.log('Server is running');
+});
+
 // Define a function to handle the /pie command
 async function handlePieCommand(user_name, text, res) {
   const { WebClient } = require('@slack/web-api');
@@ -158,7 +163,3 @@ async function handleEatPieCommand(res) {
   }
 }
 
-// Start the server
-app.listen(process.env.PORT || 3000, () => {
-  console.log('Server is running');
-});
