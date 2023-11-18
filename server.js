@@ -32,6 +32,7 @@ async function run() {
     console.log("Connected to MongoDB!");
 
     slackEvents.on('message', async (event) => {
+      console.log('Received a message event');
       if (event.thread_ts) {
         const pie = await db.collection('pies').findOne({ ts: event.thread_ts });
         if (pie) {
@@ -55,9 +56,6 @@ async function run() {
       switch (command) {
         case '/pie':
           handlePieCommand(user_name, text, res);
-          break;
-        case '/slicepie':
-          handleSlicePieCommand(user_name, text, res);
           break;
         case '/eatpie':
           handleEatPieCommand(res);
