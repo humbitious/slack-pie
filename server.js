@@ -158,6 +158,20 @@ async function handleEatPieCommand(res) {
   }
 }
 
+// Add the /test-db-connection route
+app.get('/test-db-connection', async (req, res) => {
+  try {
+    // Use the connection to get the server status
+    const serverStatus = await db.command({ serverStatus: 1 });
+
+    // If the command was successful, send a success message
+    res.send('Database connection is working');
+  } catch (err) {
+    // If the command failed, send an error message
+    res.send('Database connection is not working');
+  }
+});
+
 // Start the server
 app.listen(process.env.PORT || 3000, () => {
   console.log('Server is running');
