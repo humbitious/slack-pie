@@ -153,7 +153,6 @@ app.get('/', (req, res) => {
   res.send('Hello, world!');
 });
 
-const MongoClient = require('mongodb').MongoClient;
 
 app.get('/test-db-connection', async (req, res) => {
   try {
