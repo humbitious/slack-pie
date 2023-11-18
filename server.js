@@ -24,7 +24,7 @@ MongoClient.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pie', 
 
   // Otherwise, log a success message and store the database connection
   console.log('Connected to MongoDB');
-  db = client.db();
+  db = client.db('pie');
 });
 
 // Define a route to handle Slack slash commands
@@ -54,7 +54,6 @@ async function handlePieCommand(user_name, text, res) {
 
 const slackClient = new WebClient(process.env.SLACK_TOKEN);
 
-async function handlePieCommand(user_name, text, res) {
   const pieId = text.trim();
 
   try {
@@ -76,66 +75,73 @@ async function handlePieCommand(user_name, text, res) {
 
 // Define a function to handle the /slicepie command
 async function handleSlicePieCommand(user_name, text, res) {
-  // Split the text into a username, a number, and a text string
-  const [username, number, ...textArray] = text.split(' ');
-  const textString = textArray.join(' ');
+  // Extract the pie ID and the slice value from the command text
+  const [pieId, sliceValue] = text.trim().split(' ');
 
-  // Convert the number to a float
-  const pie = parseFloat(number);
+  // Convert the slice value to a number
+  const slice = parseFloat(sliceValue);
 
-  // If the number is not a valid number, send an error message
-  if (isNaN(pie) || pie < 0) {
+  // If the slice value is not a valid number, send an error message
+  if (isNaN(slice) || slice < 0) {
     res.send('Invalid number');
     return;
   }
 
-  // Add the pie to the user's total pie and the channel's total pie
+  // Check if the pie exists
+  const pie = await db.collection('pies').findOne({ pieId: pieId });
+  if (!pie) {
+    res.send('Invalid pie ID');
+    return;
+  }
+
   try {
-    await db.collection('users').updateOne(
-      { name: username },
-      { $inc: { totalPie: pie } },
-      { upsert: true }
-    );
+    // Add the slice to the slices collection with the user's name and the pie ID
+    await db.collection('slices').insertOne({ user: user_name, pieId: pieId, value: slice });
 
-    await db.collection('channels').updateOne(
-      { name: process.env.CHANNEL_NAME },
-      { $inc: { totalPie: pie } },
-      { upsert: true }
-    );
-
-    res.send(`Added ${pie} to ${username}'s total pie`);
+    res.send(`Slice for pie ${pieId} has been added by ${user_name}`);
   } catch (err) {
-    console.error('Error updating total pie', err);
-    res.send('Error updating total pie');
+    console.error('Error handling /slicepie command', err);
+    res.send('Error handling /slicepie command');
   }
 }
 
 // Define a function to handle the /eatpie command
 async function handleEatPieCommand(res) {
   try {
-    // Retrieve the total pie for the channel
-    const channel = await db.collection('channels').findOne({ name: process.env.CHANNEL_NAME });
+    // Retrieve all pies
+    const pies = await db.collection('pies').find().toArray();
 
-    // If the channel doesn't exist or has no pie, send an error message
-    if (!channel || !channel.totalPie) {
-      res.send('No pie in the channel');
-      return;
+    // For each pie, calculate the average slice value
+    for (const pie of pies) {
+      // Retrieve all slices for the pie
+      const slices = await db.collection('slices').find({ pieId: pie.pieId }).toArray();
+
+      // Calculate the sum of the slice values
+      const sum = slices.reduce((a, b) => a + b.value, 0);
+
+      // Calculate the average slice value
+      const average = sum / slices.length;
+
+      // Store the average slice value in the averages collection
+      await db.collection('averages').updateOne(
+        { pieId: pie.pieId },
+        { $set: { average: average } },
+        { upsert: true }
+      );
     }
 
-    // Retrieve the total pie for each user
-    const users = await db.collection('users').find().toArray();
+    // Retrieve all averages
+    const averages = await db.collection('averages').find().toArray();
 
-    // Calculate each user's claim and send a message with the claims
-    let claims = '';
-    for (const user of users) {
-      const claim = user.totalPie / channel.totalPie;
-      claims += `${user.name}: ${claim}\n`;
+    // Send a message with the averages
+    let message = 'Averages:\n';
+    for (const average of averages) {
+      message += `Pie ${average.pieId}: ${average.average}\n`;
     }
-
-    res.send(`Claims:\n${claims}`);
+    res.send(message);
   } catch (err) {
-    console.error('Error retrieving total pie', err);
-    res.send('Error retrieving total pie');
+    console.error('Error calculating averages', err);
+    res.send('Error calculating averages');
   }
 }
 
