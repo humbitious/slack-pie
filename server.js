@@ -25,32 +25,32 @@ MongoClient.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pie', 
   // Otherwise, log a success message and store the database connection
   console.log('Connected to MongoDB');
   db = client.db('pie');
-});
 
-// Define a route to handle Slack slash commands
-app.post('/slack/commands', (req, res) => {
-  // Extract the command, text, and user_name from the request body
-  const { command, text, user_name } = req.body;
+  // Define a route to handle Slack slash commands
+  app.post('/slack/commands', (req, res) => {
+    // Extract the command, text, and user_name from the request body
+    const { command, text, user_name } = req.body;
 
-  // Depending on the command, call a different function
-  switch (command) {
-    case '/pie':
-      handlePieCommand(user_name, text, res);
-      break;
-    case '/slicepie':
-      handleSlicePieCommand(user_name, text, res);
-      break;
-    case '/eatpie':
-      handleEatPieCommand(res);
-      break;
-    default:
-      res.send('Invalid command');
-  }
-});
+    // Depending on the command, call a different function
+    switch (command) {
+      case '/pie':
+        handlePieCommand(user_name, text, res);
+        break;
+      case '/slicepie':
+        handleSlicePieCommand(user_name, text, res);
+        break;
+      case '/eatpie':
+        handleEatPieCommand(res);
+        break;
+      default:
+        res.send('Invalid command');
+    }
+  });
 
-// Start the server
-app.listen(process.env.PORT || 3000, () => {
-  console.log('Server is running');
+  // Start the server
+  app.listen(process.env.PORT || 3000, () => {
+    console.log('Server is running');
+  });
 });
 
 // Define a function to handle the /pie command
