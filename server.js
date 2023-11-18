@@ -149,21 +149,6 @@ async function handleEatPieCommand(res) {
   }
 }
 
-app.get('/test-db-connection', async (req, res) => {
-  try {
-    const client = await MongoClient.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
-    await client.close();
-    res.send('Successfully connected to the database');
-  } catch (err) {
-    console.error('Failed to connect to the database', err);
-    res.send('Failed to connect to the database');
-  }
-});
-
-app.get('/', (req, res) => {
-  res.send('Hello, world!');
-});
-
 // Start the server
 app.listen(process.env.PORT || 3000, () => {
   console.log('Server is running');
