@@ -50,37 +50,27 @@ app.post('/slack/commands', (req, res) => {
 
 // Define a function to handle the /pie command
 async function handlePieCommand(user_name, text, res) {
-  // Split the text into a number and a text string
-  const [number, ...textArray] = text.split(' ');
-  const textString = textArray.join(' ');
+  const { WebClient } = require('@slack/web-api');
 
-  // Convert the number to a float
-  const pie = parseFloat(number);
+const slackClient = new WebClient(process.env.SLACK_TOKEN);
 
-  // If the number is not a valid number, send an error message
-  if (isNaN(pie) || pie < 0) {
-    res.send('Invalid number');
-    return;
-  }
+async function handlePieCommand(user_name, text, res) {
+  const pieId = text.trim();
 
-  // Add the pie to the user's total pie and the channel's total pie
   try {
-    await db.collection('users').updateOne(
-      { name: user_name },
-      { $inc: { totalPie: pie } },
-      { upsert: true }
-    );
+    // Post a new message for the /pie command
+    const result = await slackClient.chat.postMessage({
+      channel: process.env.CHANNEL_ID,
+      text: `Pie ${pieId} has been added by ${user_name}`
+    });
 
-    await db.collection('channels').updateOne(
-      { name: process.env.CHANNEL_NAME },
-      { $inc: { totalPie: pie } },
-      { upsert: true }
-    );
+    // Store the ts value of the message in the database
+    await db.collection('pies').insertOne({ user: user_name, pieId: pieId, ts: result.ts });
 
-    res.send(`Added ${pie} to ${user_name}'s total pie`);
+    res.send('');
   } catch (err) {
-    console.error('Error updating total pie', err);
-    res.send('Error updating total pie');
+    console.error('Error handling /pie command', err);
+    res.send('Error handling /pie command');
   }
 }
 
