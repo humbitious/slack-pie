@@ -32,7 +32,8 @@ async function run() {
       if (event.thread_ts) {
         const pie = await db.collection('pies').findOne({ ts: event.thread_ts });
         if (pie) {
-          const sliceValue = parseFloat(event.text);
+          // Extract the slice value from the message text
+          const sliceValue = parseFloat(event.text.replace('#', ''));
           if (!isNaN(sliceValue) && sliceValue >= 0) {
             await db.collection('slices').insertOne({ user: event.user, pieId: pie.pieId, value: sliceValue });
           }
