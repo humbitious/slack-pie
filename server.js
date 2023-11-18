@@ -69,7 +69,7 @@ run().catch(console.dir);
 async function handlePieCommand(user_name, text, res) {
   const { WebClient } = require('@slack/web-api');
 
-const slackClient = new WebClient(process.env.SLACK_TOKEN);
+  const slackClient = new WebClient(process.env.SLACK_TOKEN);
 
   const pieId = text.trim();
 
@@ -80,8 +80,15 @@ const slackClient = new WebClient(process.env.SLACK_TOKEN);
       text: `Pie ${pieId} has been added by ${user_name}`
     });
 
-    // Store the ts value of the message in the database
-    await db.collection('pies').insertOne({ user: user_name, pieId: pieId, ts: result.ts });
+    // Post a reply to the message to start a thread
+    const threadResult = await slackClient.chat.postMessage({
+      channel: process.env.CHANNEL_ID,
+      text: `Thread started for pie ${pieId}`,
+      thread_ts: result.ts
+    });
+
+    // Store the ts value of the thread in the database
+    await db.collection('pies').insertOne({ user: user_name, pieId: pieId, ts: threadResult.ts });
 
     res.send('');
   } catch (err) {
