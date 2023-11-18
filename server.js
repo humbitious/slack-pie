@@ -103,6 +103,19 @@ async function handleSlicePieCommand(user_name, text, res) {
     console.error('Error handling /slicepie command', err);
     res.send('Error handling /slicepie command');
   }
+  try {
+    // Post a new message to the thread
+    const result = await slackClient.chat.postMessage({
+      channel: process.env.CHANNEL_ID,
+      text: `Slice for pie ${pieId} has been added by ${user_name}`,
+      thread_ts: thread_ts  // post the message to the thread
+    });
+
+    // ... rest of your code ...
+  } catch (err) {
+    console.error('Error handling /slicepie command', err);
+    res.send('Error handling /slicepie command');
+  }
 }
 
 // Define a function to handle the /eatpie command
