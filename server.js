@@ -28,6 +28,7 @@ MongoClient.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pie', 
 
   // Define a route to handle Slack slash commands
   app.post('/slack/commands', (req, res) => {
+    console.log('Received a request'); // Add this line
     // Extract the command, text, and user_name from the request body
     const { command, text, user_name } = req.body;
 
