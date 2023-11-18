@@ -15,7 +15,7 @@ app.use(bodyParser.json());
 let db;
 
 // Connect to the MongoDB database
-MongoClient.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pie', { connectTimeoutMS: 5000 }, (err, client) => {
+MongoClient.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pie', (err, client) => {
   // If there's an error, log it and exit
   if (err) {
     console.error('Failed to connect to MongoDB', err);
@@ -25,33 +25,27 @@ MongoClient.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pie', 
   // Otherwise, log a success message and store the database connection
   console.log('Connected to MongoDB');
   db = client.db('pie');
+});
 
-  // Define a route to handle Slack slash commands
-  app.post('/slack/commands', (req, res) => {
-    console.log('Received a request'); // Add this line
-    // Extract the command, text, and user_name from the request body
-    const { command, text, user_name } = req.body;
+// Define a route to handle Slack slash commands
+app.post('/slack/commands', (req, res) => {
+  // Extract the command, text, and user_name from the request body
+  const { command, text, user_name } = req.body;
 
-    // Depending on the command, call a different function
-    switch (command) {
-      case '/pie':
-        handlePieCommand(user_name, text, res);
-        break;
-      case '/slicepie':
-        handleSlicePieCommand(user_name, text, res);
-        break;
-      case '/eatpie':
-        handleEatPieCommand(res);
-        break;
-      default:
-        res.send('Invalid command');
-    }
-  });
-
-  // Start the server
-  app.listen(process.env.PORT || 3000, () => {
-    console.log('Server is running');
-  });
+  // Depending on the command, call a different function
+  switch (command) {
+    case '/pie':
+      handlePieCommand(user_name, text, res);
+      break;
+    case '/slicepie':
+      handleSlicePieCommand(user_name, text, res);
+      break;
+    case '/eatpie':
+      handleEatPieCommand(res);
+      break;
+    default:
+      res.send('Invalid command');
+  }
 });
 
 // Define a function to handle the /pie command
@@ -164,3 +158,7 @@ async function handleEatPieCommand(res) {
   }
 }
 
+// Start the server
+app.listen(process.env.PORT || 3000, () => {
+  console.log('Server is running');
+});
