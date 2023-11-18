@@ -22,6 +22,9 @@ const client = new MongoClient(uri, {
   }
 });
 
+const { WebClient } = require('@slack/web-api');
+const slackClient = new WebClient(process.env.SLACK_TOKEN);
+
 async function run() {
   try {
     await client.connect();
@@ -32,10 +35,16 @@ async function run() {
       if (event.thread_ts) {
         const pie = await db.collection('pies').findOne({ ts: event.thread_ts });
         if (pie) {
-          // Extract the slice value from the message text
           const sliceValue = parseFloat(event.text.replace('#', ''));
           if (!isNaN(sliceValue) && sliceValue >= 0) {
             await db.collection('slices').insertOne({ user: event.user, pieId: pie.pieId, value: sliceValue });
+    
+            // Post a reply to the thread
+            await slackClient.chat.postMessage({
+              channel: event.channel,
+              text: `Slice for pie ${pie.pieId} has been added by ${event.user}`,
+              thread_ts: event.thread_ts
+            });
           }
         }
       }
@@ -71,8 +80,7 @@ async function run() {
 run().catch(console.dir);
 
 async function handlePieCommand(user_name, text, res) {
-  const { WebClient } = require('@slack/web-api');
-  const slackClient = new WebClient(process.env.SLACK_TOKEN);
+
   const pieId = text.trim();
 
   try {
@@ -96,8 +104,6 @@ async function handlePieCommand(user_name, text, res) {
 }
 
 async function handleSlicePieCommand(user_name, text, res) {
-  const { WebClient } = require('@slack/web-api');
-  const slackClient = new WebClient(process.env.SLACK_TOKEN);
   const [pieId, sliceValue] = text.trim().split(' ');
   const slice = parseFloat(sliceValue);
 
