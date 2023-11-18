@@ -9,6 +9,16 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 const slackEvents = createEventAdapter(process.env.SLACK_SIGNING_SECRET);
+app.use('/slack/events', (req, res, next) => {
+  if (req.body.type === 'url_verification') {
+    res.send(req.body.challenge);
+  } else {
+    next();
+  }
+});
+
+
+
 app.use('/slack/events', slackEvents.requestListener());
 
 const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/pie';
@@ -24,7 +34,6 @@ const client = new MongoClient(uri, {
 
 const { WebClient } = require('@slack/web-api');
 const slackClient = new WebClient(process.env.SLACK_TOKEN);
-
 
 async function run() {
   try {
