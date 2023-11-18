@@ -2,7 +2,7 @@ require('dotenv').config();
 // Import the necessary modules
 const express = require('express');
 const bodyParser = require('body-parser');
-const MongoClient = require('mongodb').MongoClient;
+const { MongoClient, ServerApiVersion } = require('mongodb');
 
 // Create a new Express application
 const app = express();
@@ -12,20 +12,23 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 // Declare a variable to hold our database connection
+const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/pie';
 let db;
 
-// Connect to the MongoDB database
-MongoClient.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pie', (err, client) => {
-  // If there's an error, log it and exit
-  if (err) {
-    console.error('Failed to connect to MongoDB', err);
-    process.exit(1);
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
   }
-
-  // Otherwise, log a success message and store the database connection
-  console.log('Connected to MongoDB');
-  db = client.db('pie');
 });
+
+async function run() {
+  try {
+    await client.connect();
+    db = client.db('pie');
+    console.log("Connected to MongoDB!");
+
 
 // Define a route to handle Slack slash commands
 app.post('/slack/commands', (req, res) => {
@@ -47,6 +50,20 @@ app.post('/slack/commands', (req, res) => {
       res.send('Invalid command');
   }
 });
+
+    // Start the server
+    app.listen(process.env.PORT || 3000, () => {
+      console.log('Server is running');
+    });
+
+  } catch (err) {
+    console.error('Failed to connect to MongoDB', err);
+    process.exit(1);
+  }
+}
+
+run().catch(console.dir);
+
 
 // Define a function to handle the /pie command
 async function handlePieCommand(user_name, text, res) {
@@ -75,6 +92,9 @@ const slackClient = new WebClient(process.env.SLACK_TOKEN);
 
 // Define a function to handle the /slicepie command
 async function handleSlicePieCommand(user_name, text, res) {
+  const { WebClient } = require('@slack/web-api');
+  const slackClient = new WebClient(process.env.SLACK_TOKEN);
+
   // Extract the pie ID and the slice value from the command text
   const [pieId, sliceValue] = text.trim().split(' ');
 
@@ -98,20 +118,14 @@ async function handleSlicePieCommand(user_name, text, res) {
     // Add the slice to the slices collection with the user's name and the pie ID
     await db.collection('slices').insertOne({ user: user_name, pieId: pieId, value: slice });
 
-    res.send(`Slice for pie ${pieId} has been added by ${user_name}`);
-  } catch (err) {
-    console.error('Error handling /slicepie command', err);
-    res.send('Error handling /slicepie command');
-  }
-  try {
     // Post a new message to the thread
     const result = await slackClient.chat.postMessage({
       channel: process.env.CHANNEL_ID,
       text: `Slice for pie ${pieId} has been added by ${user_name}`,
-      thread_ts: thread_ts  // post the message to the thread
+      thread_ts: pie.ts  // post the message to the thread
     });
 
-    // ... rest of your code ...
+    res.send(`Slice for pie ${pieId} has been added by ${user_name}`);
   } catch (err) {
     console.error('Error handling /slicepie command', err);
     res.send('Error handling /slicepie command');
@@ -170,9 +184,4 @@ app.get('/test-db-connection', async (req, res) => {
     // If the command failed, send an error message
     res.send('Database connection is not working');
   }
-});
-
-// Start the server
-app.listen(process.env.PORT || 3000, () => {
-  console.log('Server is running');
 });
