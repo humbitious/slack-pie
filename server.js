@@ -15,7 +15,7 @@ app.use(bodyParser.json());
 let db;
 
 // Connect to the MongoDB database
-MongoClient.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pie', (err, client) => {
+MongoClient.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pie', { connectTimeoutMS: 5000 }, (err, client) => {
   // If there's an error, log it and exit
   if (err) {
     console.error('Failed to connect to MongoDB', err);
