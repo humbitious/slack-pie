@@ -26,8 +26,6 @@ app.use('/slack/events', (req, res, next) => {
 
 
 
-app.use('/slack/events', slackEvents.requestListener());
-
 const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/pie';
 let db;
 
