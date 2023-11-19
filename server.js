@@ -5,16 +5,20 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
 const { createEventAdapter } = require('@slack/events-api');
 
 const app = express();
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
 
 const slackEvents = createEventAdapter(process.env.SLACK_SIGNING_SECRET);
 // Add this line right after the slackEvents constant
 app.use('/slack/events', slackEvents.requestListener());
 
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+
+
 // Make sure any body parser middleware is added after the slackEvents.requestListener() middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+
 
 app.use('/slack/events', (req, res, next) => {
   if (req.body.type === 'url_verification') {
