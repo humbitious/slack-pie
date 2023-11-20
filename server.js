@@ -112,7 +112,7 @@ async function run() {
 run().catch(console.dir);
 
 async function handlePieCommand(user_name, text, res) {
-  const [pieId, pieValue] = text.trim().split(' ');
+  const [pieId, pieValue] = text.trim().split(/\s+/);
 
   // Make sure pieValue is a number
   const value = Number(pieValue);
