@@ -168,8 +168,8 @@ async function handleSlicePieCommand(user_name, text, res) {
 // Define a function to handle the /eatpie command
 async function handleEatPieCommand(res) {
   try {
-    // Retrieve all pies
-    const pies = await db.collection('pies').find().toArray();
+    // Retrieve all uneaten pies
+    const pies = await db.collection('pies').find({ eaten: { $ne: true } }).toArray();
 
     // For each pie, calculate the average slice value
     for (const pie of pies) {
@@ -177,10 +177,13 @@ async function handleEatPieCommand(res) {
       const slices = await db.collection('slices').find({ pieId: pie.pieId }).toArray();
 
       // Calculate the sum of the slice values
-      const sum = slices.reduce((a, b) => a + b.value, 0);
+      let sum = slices.reduce((a, b) => a + b.value, 0);
+
+      // Include the original pie amount in the sum
+      sum += pie.value;
 
       // Calculate the average slice value
-      const average = sum / slices.length;
+      const average = sum / (slices.length + 1); // +1 for the original pie amount
 
       // Store the average slice value in the averages collection
       await db.collection('averages').updateOne(
@@ -188,6 +191,9 @@ async function handleEatPieCommand(res) {
         { $set: { average: average } },
         { upsert: true }
       );
+
+      // Mark the pie as eaten
+      await db.collection('pies').updateOne({ pieId: pie.pieId }, { $set: { eaten: true } });
     }
 
     // Retrieve all averages
