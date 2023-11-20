@@ -54,7 +54,8 @@ async function run() {
       try {
         console.log('Received a message event', event);
         if (event.thread_ts) {
-          const pie = await db.collection('pies').findOne({ ts: event.thread_ts });
+          const thread_ts = parseFloat(event.thread_ts).toFixed(6); // Round to 6 decimal places
+          const pie = await db.collection('pies').findOne({ ts: thread_ts }); // Use rounded thread_ts
           console.log('Found pie', pie);
           if (pie) {
             const match = event.text.match(/\d+/);
@@ -106,7 +107,6 @@ async function run() {
 run().catch(console.dir);
 
 async function handlePieCommand(user_name, text, res) {
-
   const pieId = text.trim();
 
   try {
@@ -121,7 +121,8 @@ async function handlePieCommand(user_name, text, res) {
       thread_ts: result.ts
     });
 
-    await db.collection('pies').insertOne({ user: user_name, pieId: pieId, ts: threadResult.ts });
+    // Use the ts value from the first posted message
+    await db.collection('pies').insertOne({ user: user_name, pieId: pieId, ts: result.ts });
     res.send('');
   } catch (err) {
     console.error('Error handling /pie command', err);
