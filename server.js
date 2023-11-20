@@ -180,10 +180,16 @@ async function handleEatPieCommand(res) {
       let sum = slices.reduce((a, b) => a + b.value, 0);
 
       // Include the original pie amount in the sum
-      sum += pie.value;
+      // Make sure pie.value is a number
+      const originalPieValue = Number(pie.value);
+      if (!isNaN(originalPieValue)) {
+        sum += originalPieValue;
+      }
 
       // Calculate the average slice value
-      const average = sum / (slices.length + 1); // +1 for the original pie amount
+      // If there are no slices, the denominator should be 1 (just the original pie entry)
+      const denominator = slices.length > 0 ? slices.length + 1 : 1;
+      const average = sum / denominator;
 
       // Store the average slice value in the averages collection
       await db.collection('averages').updateOne(
