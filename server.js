@@ -52,6 +52,11 @@ async function run() {
 
     slackEvents.on('message', async (event) => {
       try {
+        // Ignore messages from the bot itself
+        if (event.bot_id) {
+          return;
+        }
+    
         console.log('Received a message event', event);
         if (event.thread_ts) {
           const thread_ts = parseFloat(event.thread_ts).toFixed(6); // Round to 6 decimal places
