@@ -112,7 +112,14 @@ async function run() {
 run().catch(console.dir);
 
 async function handlePieCommand(user_name, text, res) {
-  const pieId = text.trim();
+  const [pieId, pieValue] = text.trim().split(' ');
+
+  // Make sure pieValue is a number
+  const value = Number(pieValue);
+  if (isNaN(value) || value < 0) {
+    res.send('Invalid number');
+    return;
+  }
 
   try {
     const result = await slackClient.chat.postMessage({
@@ -126,8 +133,8 @@ async function handlePieCommand(user_name, text, res) {
       thread_ts: result.ts
     });
 
-    // Use the ts value from the first posted message
-    await db.collection('pies').insertOne({ user: user_name, pieId: pieId, ts: result.ts });
+    // Include the value property when inserting the pie
+    await db.collection('pies').insertOne({ user: user_name, pieId: pieId, ts: result.ts, value: value });
     res.send('');
   } catch (err) {
     console.error('Error handling /pie command', err);
