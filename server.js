@@ -187,8 +187,8 @@ async function handleEatPieCommand(res) {
       }
 
       // Calculate the average slice value
-      // If there are no slices, the denominator should be 1 (just the original pie entry)
-      const denominator = slices.length > 0 ? slices.length + 1 : 1;
+      // The denominator should be the number of slices plus one (for the original pie entry)
+      const denominator = slices.length + 1;
       const average = sum / denominator;
 
       // Store the average slice value in the averages collection
