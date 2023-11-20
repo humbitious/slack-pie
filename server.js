@@ -51,22 +51,31 @@ async function run() {
     console.log("Connected to MongoDB!");
 
     slackEvents.on('message', async (event) => {
-      console.log('Received a message event');
-      if (event.thread_ts) {
-        const pie = await db.collection('pies').findOne({ ts: event.thread_ts });
-        if (pie) {
-          const sliceValue = parseFloat(event.text.replace('#', ''));
-          if (!isNaN(sliceValue) && sliceValue >= 0) {
-            await db.collection('slices').insertOne({ user: event.user, pieId: pie.pieId, value: sliceValue });
+      try {
+        console.log('Received a message event', event);
+        if (event.thread_ts) {
+          const pie = await db.collection('pies').findOne({ ts: event.thread_ts });
+          console.log('Found pie', pie);
+          if (pie) {
+            const match = event.text.match(/\d+/);
+            if (match) {
+              const sliceValue = parseFloat(match[0]);
+              console.log('Parsed slice value', sliceValue);
+              if (!isNaN(sliceValue) && sliceValue >= 0) {
+                await db.collection('slices').insertOne({ user: event.user, pieId: pie.pieId, value: sliceValue });
+                console.log('Inserted slice');
     
-            // Post a reply to the thread
-            await slackClient.chat.postMessage({
-              channel: event.channel,
-              text: `Slice for pie ${pie.pieId} has been added by ${event.user}`,
-              thread_ts: event.thread_ts
-            });
+                await slackClient.chat.postMessage({
+                  channel: event.channel,
+                  text: `Slice for pie ${pie.pieId} has been added by ${event.user}`,
+                  thread_ts: event.thread_ts
+                });
+              }
+            }
           }
         }
+      } catch (err) {
+        console.error('Error handling message event', err);
       }
     });
 
