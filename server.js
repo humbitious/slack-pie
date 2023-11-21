@@ -182,6 +182,9 @@ async function handleEatPieCommand(res) {
     // Retrieve all uneaten pies
     const pies = await db.collection('pies').find({ eaten: { $ne: true } }).toArray();
 
+    let totalPie = 0;
+    let userTotals = {};
+
     // For each pie, calculate the average slice value
     for (const pie of pies) {
       // Retrieve all slices for the pie
@@ -202,25 +205,46 @@ async function handleEatPieCommand(res) {
       const denominator = slices.length > 0 ? slices.length + 1 : 1;
       const average = sum / denominator;
 
-      // Store the average slice value in the averages collection
+      totalPie += average;
+
+      // Store the average slice value and the percentage of the pie in the averages collection
       await db.collection('averages').updateOne(
         { pieId: pie.pieId },
-        { $set: { average: average } },
+        { $set: { average: average, percentage: 0 } }, // percentage will be updated later
         { upsert: true }
       );
 
       // Mark the pie as eaten
       await db.collection('pies').updateOne({ pieId: pie.pieId }, { $set: { eaten: true } });
+
+      // Add to the user's total
+      if (userTotals[pie.user]) {
+        userTotals[pie.user] += average;
+      } else {
+        userTotals[pie.user] = average;
+      }
     }
 
-    // Retrieve all averages
+    // Update the percentage of the pie for each average
     const averages = await db.collection('averages').find().toArray();
+    for (const average of averages) {
+      const percentage = (average.average / totalPie) * 100;
+      await db.collection('averages').updateOne(
+        { pieId: average.pieId },
+        { $set: { percentage: percentage } }
+      );
+    }
 
-    // Send a message with the averages
+    // Send a message with the averages and the user totals
     let message = 'Averages:\n';
     for (const average of averages) {
-      message += `Pie ${average.pieId}: ${average.average}\n`;
+      message += `Pie ${average.pieId}: ${average.average} (${average.percentage}% of the total pie)\n`;
     }
+    message += '\nUser totals:\n';
+    for (const user in userTotals) {
+      message += `${user}: ${userTotals[user]}\n`;
+    }
+    message += `\nTotal pie: ${totalPie}`;
     res.send(message);
   } catch (err) {
     console.error('Error calculating averages', err);
