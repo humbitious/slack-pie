@@ -207,10 +207,10 @@ async function handleEatPieCommand(res) {
       const denominator = slices.length > 0 ? slices.length + 1 : 1;
       const average = sum / denominator;
 
-      // Store the average slice value in the averages collection
+      // Store the average slice value and the user in the averages collection
       await db.collection('averages').updateOne(
         { pieId: pie.pieId },
-        { $set: { average: average } },
+        { $set: { average: average, user: pie.user } },
         { upsert: true }
       );
 
@@ -256,6 +256,21 @@ async function handleEatPieCommand(res) {
   } catch (err) {
     console.error('Error calculating averages', err);
     res.send('Error calculating averages');
+  }
+}
+
+// Define a function to handle the /clearall command
+async function handleClearAllCommand(res) {
+  try {
+    // Clear all records from the pies, slices, and averages collections
+    await db.collection('pies').deleteMany({});
+    await db.collection('slices').deleteMany({});
+    await db.collection('averages').deleteMany({});
+
+    res.send('All records have been cleared.');
+  } catch (err) {
+    console.error('Error handling /clearall command', err);
+    res.send('Error handling /clearall command');
   }
 }
 
