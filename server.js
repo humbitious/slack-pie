@@ -185,7 +185,6 @@ async function handleEatPieCommand(res) {
     // Retrieve all uneaten pies
     const pies = await db.collection('pies').find({ eaten: { $ne: true } }).toArray();
 
-    let totalPie = 0;
     let userTotals = {};
 
     // For each pie, calculate the average slice value
@@ -208,28 +207,32 @@ async function handleEatPieCommand(res) {
       const denominator = slices.length > 0 ? slices.length + 1 : 1;
       const average = sum / denominator;
 
-      totalPie += average;
-
-      // Store the average slice value and the percentage of the pie in the averages collection
+      // Store the average slice value in the averages collection
       await db.collection('averages').updateOne(
         { pieId: pie.pieId },
-        { $set: { average: average, percentage: 0 } }, // percentage will be updated later
+        { $set: { average: average } },
         { upsert: true }
       );
 
       // Mark the pie as eaten
       await db.collection('pies').updateOne({ pieId: pie.pieId }, { $set: { eaten: true } });
+    }
 
-      // Add to the user's total
-      if (userTotals[pie.user]) {
-        userTotals[pie.user] += average;
+    // Retrieve all averages
+    const averages = await db.collection('averages').find().toArray();
+
+    // Calculate totalPie and userTotals based on the averages collection
+    let totalPie = 0;
+    for (const average of averages) {
+      totalPie += average.average;
+      if (userTotals[average.user]) {
+        userTotals[average.user] += average.average;
       } else {
-        userTotals[pie.user] = average;
+        userTotals[average.user] = average.average;
       }
     }
 
     // Update the percentage of the pie for each average
-    const averages = await db.collection('averages').find().toArray();
     for (const average of averages) {
       const percentage = (average.average / totalPie) * 100;
       await db.collection('averages').updateOne(
@@ -253,21 +256,6 @@ async function handleEatPieCommand(res) {
   } catch (err) {
     console.error('Error calculating averages', err);
     res.send('Error calculating averages');
-  }
-}
-
-// Define a function to handle the /clearall command
-async function handleClearAllCommand(res) {
-  try {
-    // Clear all records from the pies, slices, and averages collections
-    await db.collection('pies').deleteMany({});
-    await db.collection('slices').deleteMany({});
-    await db.collection('averages').deleteMany({});
-
-    res.send('All records have been cleared.');
-  } catch (err) {
-    console.error('Error handling /clearall command', err);
-    res.send('Error handling /clearall command');
   }
 }
 
