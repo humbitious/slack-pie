@@ -94,6 +94,9 @@ async function run() {
         case '/eatpie':
           handleEatPieCommand(res);
           break;
+        case '/clearall':
+          handleClearAllCommand(res);
+          break;
         default:
           res.send('Invalid command');
       }
@@ -242,13 +245,29 @@ async function handleEatPieCommand(res) {
     }
     message += '\nUser totals:\n';
     for (const user in userTotals) {
-      message += `${user}: ${userTotals[user]}\n`;
+      const userPercentage = (userTotals[user] / totalPie) * 100;
+      message += `${user}: ${userTotals[user]} (${userPercentage}% of the total pie)\n`;
     }
     message += `\nTotal pie: ${totalPie}`;
     res.send(message);
   } catch (err) {
     console.error('Error calculating averages', err);
     res.send('Error calculating averages');
+  }
+}
+
+// Define a function to handle the /clearall command
+async function handleClearAllCommand(res) {
+  try {
+    // Clear all records from the pies, slices, and averages collections
+    await db.collection('pies').deleteMany({});
+    await db.collection('slices').deleteMany({});
+    await db.collection('averages').deleteMany({});
+
+    res.send('All records have been cleared.');
+  } catch (err) {
+    console.error('Error handling /clearall command', err);
+    res.send('Error handling /clearall command');
   }
 }
 
