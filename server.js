@@ -113,7 +113,8 @@ async function run() {
 run().catch(console.dir);
 
 async function handlePieCommand(user_name, text, res) {
-  const [pieValue, pieId] = text.trim().split(/\s+/);
+  const pieValue = text.trim().split(/\s+/)[0];
+  const pieId = text.trim().substring(pieValue.length).trim();
 
   // Make sure pieValue is a number
   const value = Number(pieValue);
@@ -125,12 +126,12 @@ async function handlePieCommand(user_name, text, res) {
   try {
     const result = await slackClient.chat.postMessage({
       channel: process.env.CHANNEL_ID,
-      text: `Pie ${pieId.toString()} with value ${value} has been added by ${user_name}`
+      text: `Pie ${pieId} with value ${value} has been added by ${user_name}`
     });
 
     const threadResult = await slackClient.chat.postMessage({
       channel: process.env.CHANNEL_ID,
-      text: `Thread started for pie ${pieId.toString()}`,
+      text: `Thread started for pie ${pieId}`,
       thread_ts: result.ts
     });
 
@@ -144,7 +145,8 @@ async function handlePieCommand(user_name, text, res) {
 }
 
 async function handleSlicePieCommand(user_name, text, res) {
-  const [sliceValue, pieId] = text.trim().split(/\s+/);
+  const sliceValue = text.trim().split(/\s+/)[0];
+  const pieId = text.trim().substring(sliceValue.length).trim();
 
   // Make sure sliceValue is a number
   const value = Number(sliceValue);
@@ -164,7 +166,7 @@ async function handleSlicePieCommand(user_name, text, res) {
 
     const result = await slackClient.chat.postMessage({
       channel: process.env.CHANNEL_ID,
-      text: `Slice with value ${value} has been added to pie ${pieId.toString()} by ${user_name}`
+      text: `Slice with value ${value} has been added to pie ${pieId} by ${user_name}`
     });
 
     res.send('');
@@ -175,54 +177,40 @@ async function handleSlicePieCommand(user_name, text, res) {
 }
 
 // Define a function to handle the /eatpie command
-async function handleEatPieCommand(res) {
+async function handleEatPieCommand(user_name, text, res) {
   try {
-    // Retrieve all uneaten pies
-    const pies = await db.collection('pies').find({ eaten: { $ne: true } }).toArray();
+    const pies = await db.collection('pies').find({ eaten: false }).toArray();
+    let totalValue = 0;
+    let totalCount = 0;
 
-    // For each pie, calculate the average slice value
-    for (const pie of pies) {
-      // Retrieve all slices for the pie
+    for (let pie of pies) {
       const slices = await db.collection('slices').find({ pieId: pie.pieId }).toArray();
+      let pieValue = pie.value;
+      let sliceCount = slices.length;
 
-      // Calculate the sum of the slice values
-      let sum = slices.reduce((a, b) => a + b.value, 0);
-
-      // Include the original pie amount in the sum
-      // Make sure pie.value is a number
-      const originalPieValue = Number(pie.value);
-      if (!isNaN(originalPieValue)) {
-        sum += originalPieValue;
+      if (sliceCount > 0) {
+        for (let slice of slices) {
+          pieValue += slice.value;
+        }
+        totalValue += pieValue / (sliceCount + 1);
+      } else {
+        totalValue += pieValue;
       }
 
-      // Calculate the average slice value
-      // The denominator should be the number of slices plus one (for the original pie entry)
-      const denominator = slices.length + 1;
-      const average = sum / denominator;
-
-      // Store the average slice value in the averages collection
-      await db.collection('averages').updateOne(
-        { pieId: pie.pieId },
-        { $set: { average: average } },
-        { upsert: true }
-      );
-
-      // Mark the pie as eaten
-      await db.collection('pies').updateOne({ pieId: pie.pieId }, { $set: { eaten: true } });
+      totalCount++;
     }
 
-    // Retrieve all averages
-    const averages = await db.collection('averages').find().toArray();
+    const averageValue = totalValue / totalCount;
 
-    // Send a message with the averages
-    let message = 'Averages:\n';
-    for (const average of averages) {
-      message += `Pie ${average.pieId}: ${average.average}\n`;
-    }
-    res.send(message);
+    const result = await slackClient.chat.postMessage({
+      channel: process.env.CHANNEL_ID,
+      text: `The average pie value is ${averageValue}`
+    });
+
+    res.send('');
   } catch (err) {
-    console.error('Error calculating averages', err);
-    res.send('Error calculating averages');
+    console.error('Error handling /eatpie command', err);
+    res.send('Error handling /eatpie command');
   }
 }
 
