@@ -177,40 +177,54 @@ async function handleSlicePieCommand(user_name, text, res) {
 }
 
 // Define a function to handle the /eatpie command
-async function handleEatPieCommand(user_name, text, res) {
+async function handleEatPieCommand(res) {
   try {
-    const pies = await db.collection('pies').find({ eaten: false }).toArray();
-    let totalValue = 0;
-    let totalCount = 0;
+    // Retrieve all uneaten pies
+    const pies = await db.collection('pies').find({ eaten: { $ne: true } }).toArray();
 
-    for (let pie of pies) {
+    // For each pie, calculate the average slice value
+    for (const pie of pies) {
+      // Retrieve all slices for the pie
       const slices = await db.collection('slices').find({ pieId: pie.pieId }).toArray();
-      let pieValue = pie.value;
-      let sliceCount = slices.length;
 
-      if (sliceCount > 0) {
-        for (let slice of slices) {
-          pieValue += slice.value;
-        }
-        totalValue += pieValue / (sliceCount + 1);
-      } else {
-        totalValue += pieValue;
+      // Calculate the sum of the slice values
+      let sum = slices.reduce((a, b) => a + b.value, 0);
+
+      // Include the original pie amount in the sum
+      // Make sure pie.value is a number
+      const originalPieValue = Number(pie.value);
+      if (!isNaN(originalPieValue)) {
+        sum += originalPieValue;
       }
 
-      totalCount++;
+      // Calculate the average slice value
+      // The denominator should be the number of slices plus one (for the original pie entry)
+      const denominator = slices.length > 0 ? slices.length + 1 : 1;
+      const average = sum / denominator;
+
+      // Store the average slice value in the averages collection
+      await db.collection('averages').updateOne(
+        { pieId: pie.pieId },
+        { $set: { average: average } },
+        { upsert: true }
+      );
+
+      // Mark the pie as eaten
+      await db.collection('pies').updateOne({ pieId: pie.pieId }, { $set: { eaten: true } });
     }
 
-    const averageValue = totalValue / totalCount;
+    // Retrieve all averages
+    const averages = await db.collection('averages').find().toArray();
 
-    const result = await slackClient.chat.postMessage({
-      channel: process.env.CHANNEL_ID,
-      text: `The average pie value is ${averageValue}`
-    });
-
-    res.send('');
+    // Send a message with the averages
+    let message = 'Averages:\n';
+    for (const average of averages) {
+      message += `Pie ${average.pieId}: ${average.average}\n`;
+    }
+    res.send(message);
   } catch (err) {
-    console.error('Error handling /eatpie command', err);
-    res.send('Error handling /eatpie command');
+    console.error('Error calculating averages', err);
+    res.send('Error calculating averages');
   }
 }
 
