@@ -125,12 +125,12 @@ async function handlePieCommand(user_name, text, res) {
   try {
     const result = await slackClient.chat.postMessage({
       channel: process.env.CHANNEL_ID,
-      text: `Pie ${pieId} with value ${value} has been added by ${user_name}`
+      text: `Pie ${pieId.toString()} with value ${value} has been added by ${user_name}`
     });
 
     const threadResult = await slackClient.chat.postMessage({
       channel: process.env.CHANNEL_ID,
-      text: `Thread started for pie ${pieId}`,
+      text: `Thread started for pie ${pieId.toString()}`,
       thread_ts: result.ts
     });
 
@@ -164,7 +164,7 @@ async function handleSlicePieCommand(user_name, text, res) {
 
     const result = await slackClient.chat.postMessage({
       channel: process.env.CHANNEL_ID,
-      text: `Slice with value ${value} has been added to pie ${pieId} by ${user_name}`
+      text: `Slice with value ${value} has been added to pie ${pieId.toString()} by ${user_name}`
     });
 
     res.send('');
