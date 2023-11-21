@@ -125,7 +125,7 @@ async function handlePieCommand(user_name, text, res) {
   try {
     const result = await slackClient.chat.postMessage({
       channel: process.env.CHANNEL_ID,
-      text: `Pie ${pieId} has been added by ${user_name}`
+      text: `Pie ${pieId} with value ${value} has been added by ${user_name}`
     });
 
     const threadResult = await slackClient.chat.postMessage({
@@ -134,8 +134,8 @@ async function handlePieCommand(user_name, text, res) {
       thread_ts: result.ts
     });
 
-    // Include the value property when inserting the pie
-    await db.collection('pies').insertOne({ user: user_name, pieId: pieId, ts: result.ts, value: value });
+    // Include the value and eaten properties when inserting the pie
+    await db.collection('pies').insertOne({ user: user_name, pieId: pieId, ts: result.ts, value: value, eaten: false });
     res.send('');
   } catch (err) {
     console.error('Error handling /pie command', err);
@@ -144,32 +144,33 @@ async function handlePieCommand(user_name, text, res) {
 }
 
 async function handleSlicePieCommand(user_name, text, res) {
-  const [pieId, sliceValue] = text.trim().split(' ');
-  const slice = parseFloat(sliceValue);
+  const [sliceValue, pieId] = text.trim().split(/\s+/);
 
-  if (isNaN(slice) || slice < 0) {
+  // Make sure sliceValue is a number
+  const value = Number(sliceValue);
+  if (isNaN(value) || value < 0) {
     res.send('Invalid number');
     return;
   }
 
-  const pie = await db.collection('pies').findOne({ pieId: pieId });
-  if (!pie) {
-    res.send('Invalid pie ID');
-    return;
-  }
-
   try {
-    await db.collection('slices').insertOne({ user: user_name, pieId: pieId, value: slice });
+    const pie = await db.collection('pies').findOne({ pieId: pieId });
+    if (!pie) {
+      res.send('Pie not found');
+      return;
+    }
+
+    await db.collection('slices').insertOne({ user: user_name, pieId: pieId, value: value });
+
     const result = await slackClient.chat.postMessage({
       channel: process.env.CHANNEL_ID,
-      text: `Slice for pie ${pieId} has been added by ${user_name}`,
-      thread_ts: pie.ts
+      text: `Slice with value ${value} has been added to pie ${pieId} by ${user_name}`
     });
 
-    res.send(`Slice for pie ${pieId} has been added by ${user_name}`);
+    res.send('');
   } catch (err) {
-    console.error('Error handling /slicepie command', err);
-    res.send('Error handling /slicepie command');
+    console.error('Error handling /slice command', err);
+    res.send('Error handling /slice command');
   }
 }
 
