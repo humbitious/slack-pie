@@ -14,6 +14,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 
+
 // Make sure any body parser middleware is added after the slackEvents.requestListener() middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
